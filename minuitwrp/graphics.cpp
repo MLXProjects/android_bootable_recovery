@@ -296,14 +296,25 @@ int gr_init(void)
 {
     gr_draw = NULL;
 
-    gr_backend = open_overlay();
+    gr_backend = open_mmap();
     if (gr_backend) {
         gr_draw = gr_backend->init(gr_backend);
         if (!gr_draw) {
             gr_backend->exit(gr_backend);
         } else
-            printf("Using overlay graphics.\n");
+            printf("Using mmap graphics.\n");
     }
+	if (!gr_draw) {
+           printf("mmap failed to initialize.\n");
+		gr_backend = open_overlay();
+		if (gr_backend) {
+			gr_draw = gr_backend->init(gr_backend);
+			if (!gr_draw) {
+				gr_backend->exit(gr_backend);
+			} else
+				printf("Using overlay graphics.\n");
+		}
+	}
 
 #ifdef HAS_ADF
     if (!gr_draw) {

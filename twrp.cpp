@@ -70,6 +70,8 @@ static void Print_Prop(const char *key, const char *name, void *cookie) {
 	printf("%s=%s\n", key, name);
 }
 
+extern void gr_mmapfd(char *path);
+
 int main(int argc, char **argv) {
 	// Recovery needs to install world-readable files, so clear umask
 	// set by init
@@ -94,6 +96,10 @@ int main(int argc, char **argv) {
 		adb_main(argv[2]);
 #endif
 		return 0;
+	}
+	if (argc>1 && (0==strncmp(argv[1], "--mmap", 6))){
+		printf("Mmap arg should set %s -> %s.\n", argv[1], argv[1]+7);
+		gr_mmapfd(argv[1]+7);
 	}
 
 #ifdef RECOVERY_SDCARD_ON_DATA

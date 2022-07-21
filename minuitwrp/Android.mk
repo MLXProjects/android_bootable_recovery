@@ -5,6 +5,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
     graphics.cpp \
     graphics_fbdev.cpp \
+    graphics_mmap.cpp \
     resources.cpp \
     graphics_overlay.cpp \
     truetype.cpp \
