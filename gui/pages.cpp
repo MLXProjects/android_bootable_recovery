@@ -49,11 +49,12 @@ extern "C" {
 #include "rapidxml.hpp"
 #include "objects.hpp"
 #include "blanktimer.hpp"
+#include "../tw_atomic.hpp"
 
 #define TW_THEME_VERSION 1
 #define TW_THEME_VER_ERR -2
 
-extern int gGuiRunning;
+extern TWAtomicInt gGuiRunning;
 
 // From console.cpp
 extern size_t last_message_count;
@@ -519,6 +520,8 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 
 int Page::Render(void)
 {
+	if (gGuiRunning.get_value() == 0) return 0;
+	
 	// Render background
 	gr_color(mBackground.red, mBackground.green, mBackground.blue, mBackground.alpha);
 	gr_fill(0, 0, gr_fb_width(), gr_fb_height());
@@ -552,6 +555,8 @@ int Page::Update(void)
 
 int Page::NotifyTouch(TOUCH_STATE state, int x, int y)
 {
+	if (gGuiRunning.get_value() == 0) return 0;
+
 	// By default, return 1 to ignore further touches if nobody is listening
 	int ret = 1;
 
@@ -590,6 +595,8 @@ int Page::NotifyTouch(TOUCH_STATE state, int x, int y)
 
 int Page::NotifyKey(int key, bool down)
 {
+	if (gGuiRunning.get_value() == 0) return 0;
+
 	std::vector<ActionObject*>::reverse_iterator iter;
 
 	int ret = 1;
@@ -1168,6 +1175,9 @@ int PageSet::NotifyVarChange(std::string varName, std::string value)
 
 void PageSet::AddStringResource(std::string resource_source, std::string resource_name, std::string value)
 {
+	if (gGuiRunning.get_value() == 0)
+		return;
+	
 	mResources->AddStringResource(resource_source, resource_name, value);
 }
 
@@ -1677,7 +1687,7 @@ void PageManager::AddStringResource(std::string resource_source, std::string res
 
 extern "C" void gui_notifyVarChange(const char *name, const char* value)
 {
-	if (!gGuiRunning)
+	if (gGuiRunning.get_value() == 0)
 		return;
 
 	PageManager::NotifyVarChange(name, value);

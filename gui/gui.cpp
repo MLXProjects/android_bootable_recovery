@@ -34,6 +34,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 extern "C"
 {
@@ -74,7 +75,8 @@ static float scale_theme_w = 1;
 static float scale_theme_h = 1;
 
 // Needed by pages.cpp too
-int gGuiRunning = 0;
+TWAtomicInt gGuiRunning;
+pthread_mutex_t render_lock;
 
 int g_pty_fd = -1;  // set by terminal on init
 void terminal_pty_read();
@@ -85,6 +87,7 @@ extern "C" void gr_write_frame_to_file(int fd);
 
 void flip(void)
 {
+	if (gGuiRunning.get_value() == 0) return;
 	if (gRecorder != -1)
 	{
 		timespec time;
@@ -546,7 +549,7 @@ static int runPages(const char *page_name, const int stop_on_page_done)
 		gui_changePage(page_name);
 	}
 
-	gGuiRunning = 1;
+	gGuiRunning.set_value(1);
 
 	DataManager::SetValue("tw_loaded", 1);
 
@@ -584,6 +587,7 @@ static int runPages(const char *page_name, const int stop_on_page_done)
 		}
 #endif
 
+		pthread_mutex_lock(&render_lock);
 		if (!gForceRender.get_value())
 		{
 			int ret = PageManager::Update();
@@ -629,6 +633,7 @@ static int runPages(const char *page_name, const int stop_on_page_done)
 			flip();
 			input_timeout_ms = 0;
 		}
+		pthread_mutex_unlock(&render_lock);
 
 		blankTimer.checkForTimeout();
 		if (stop_on_page_done && DataManager::GetIntValue("tw_page_done") != 0)
@@ -642,7 +647,7 @@ static int runPages(const char *page_name, const int stop_on_page_done)
 	if (ors_read_fd > 0)
 		close(ors_read_fd);
 	ors_read_fd = -1;
-	gGuiRunning = 0;
+	gGuiRunning.set_value(0);
 	return 0;
 }
 
@@ -744,13 +749,19 @@ extern "C" int gui_init(void)
 		LOGERR("Failed to load splash screen XML.\n");
 	}
 	else {
+		gGuiRunning.set_value(1);
 		PageManager::SelectPackage("splash");
 		PageManager::Render();
 		flip();
 		PageManager::ReleasePackage("splash");
+		gGuiRunning.set_value(0);
 	}
 
 	ev_init();
+	if (pthread_mutex_init(&render_lock, NULL) != 0) {
+		LOGERR("Failed to init mutex\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -852,6 +863,32 @@ error:
 extern "C" int gui_start(void)
 {
 	return gui_startPage("main", 1, 0);
+}
+extern "C" void gui_pause()
+{
+	if (gGuiRunning.get_value() == 0) return; // GUI is already paused or otherwise not running
+	pthread_mutex_lock(&render_lock);
+	gGuiRunning.set_value(0);
+#ifndef TW_NO_SCREEN_TIMEOUT
+	blankTimer.setTime(0);
+	blankTimer.resetTimerAndUnblank();
+#endif
+	gr_exit();
+	pthread_mutex_unlock(&render_lock);
+}
+
+extern "C" void gui_resume()
+{
+	if (gGuiRunning.get_value() != 0) return; // GUI is already running
+	pthread_mutex_lock(&render_lock);
+	gr_init();
+	pthread_mutex_unlock(&render_lock);
+	gGuiRunning.set_value(1);
+#ifndef TW_NO_SCREEN_TIMEOUT
+	blankTimer.setTime(DataManager::GetIntValue("tw_screen_timeout_secs"));
+	blankTimer.resetTimerAndUnblank();
+#endif
+	gui_forceRender();
 }
 
 extern "C" int gui_startPage(const char *page_name, const int allow_commands, int stop_on_page_done)

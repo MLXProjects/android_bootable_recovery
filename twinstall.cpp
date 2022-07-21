@@ -253,13 +253,20 @@ static int Run_Update_Binary(const char *path, ZipArchive *Zip, int* wipe_cache)
 			*wipe_cache = 1;
 		} else if (strcmp(command, "clear_display") == 0) {
 			// Do nothing, not supported by TWRP
-		} else {
+        } else if (strcmp(command, "gui_stop") == 0) {
+            gui_print("global ui locked");
+			gui_pause();
+        } else if (strcmp(command, "gui_resume") == 0) {
+            gui_print("global ui unlocked");
+			gui_resume();
+        } else {
 			LOGERR("unknown command [%s]\n", command);
 		}
 	}
 	fclose(child_data);
 
 	int waitrc = TWFunc::Wait_For_Child(pid, &status, "Updater");
+	gui_resume();
 
 #ifndef TW_NO_LEGACY_PROPS
 	/* Unset legacy properties */
