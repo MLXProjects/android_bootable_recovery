@@ -34,6 +34,7 @@
 
 extern "C" {
 #include "gui/gui.h"
+#include <aroma.h>
 }
 #include "set_metadata.h"
 #include "gui/gui.hpp"
@@ -118,7 +119,10 @@ int main(int argc, char **argv) {
 	// Load default values to set DataManager constants and handle ifdefs
 	DataManager::SetDefaultValues();
 	printf("Starting the UI...\n");
-	gui_init();
+	if (gui_init()){
+		LOGERR("Failed to start the UI!\n");
+		return -1;
+	}
 	printf("=> Linking mtab\n");
 	symlink("/proc/mounts", "/etc/mtab");
 	std::string fstab_filename = "/etc/twrp.fstab";

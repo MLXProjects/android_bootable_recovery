@@ -333,7 +333,7 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 	for (xml_node<>* child = page->first_node(); child; child = child->next_sibling())
 	{
 		std::string type = child->name();
-
+		LOGINFO("Loading child %s\n", type.c_str());
 		if (type == "background") {
 			mBackground = LoadAttrColor(child, "color", COLOR(0,0,0,0));
 			continue;
@@ -402,10 +402,10 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 		}
 		else if (type == "fileselector")
 		{
-			GUIFileSelector* element = new GUIFileSelector(child);
+			/*GUIFileSelector* element = new GUIFileSelector(child);
 			mObjects.push_back(element);
 			mRenders.push_back(element);
-			mActions.push_back(element);
+			mActions.push_back(element);*/
 		}
 		else if (type == "animation")
 		{
@@ -436,10 +436,10 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 		}
 		else if (type == "listbox")
 		{
-			GUIListBox* element = new GUIListBox(child);
+			/*GUIListBox* element = new GUIListBox(child);
 			mObjects.push_back(element);
 			mRenders.push_back(element);
-			mActions.push_back(element);
+			mActions.push_back(element);*/
 		}
 		else if (type == "keyboard")
 		{
@@ -458,10 +458,10 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 		}
 		else if (type == "partitionlist")
 		{
-			GUIPartitionList* element = new GUIPartitionList(child);
+			/*GUIPartitionList* element = new GUIPartitionList(child);
 			mObjects.push_back(element);
 			mRenders.push_back(element);
-			mActions.push_back(element);
+			mActions.push_back(element);*/
 		}
 		else if (type == "patternpassword")
 		{
@@ -519,6 +519,7 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 		{
 			LOGERR("Unknown object type: %s.\n", type.c_str());
 		}
+		LOGINFO("Child loaded\n");
 	}
 	return true;
 }
@@ -526,15 +527,19 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 int Page::Render(void)
 {
 	// Render background
-	gr_color(mBackground.red, mBackground.green, mBackground.blue, mBackground.alpha);
-	gr_fill(0, 0, gr_fb_width(), gr_fb_height());
+	//gr_color(mBackground.red, mBackground.green, mBackground.blue, mBackground.alpha);
+	//gr_fill(0, 0, gr_fb_width(), gr_fb_height());
+	libaroma_canvas_setcolor(libaroma_fb()->canvas, libaroma_rgb(mBackground.red, mBackground.green, mBackground.blue), 0xFF/*mBackground.alpha*/);
 
 	// Render remaining objects
 	std::vector<RenderObject*>::iterator iter;
+	int i = 0;
 	for (iter = mRenders.begin(); iter != mRenders.end(); iter++)
 	{
+		LOGINFO("Requesting to render object #%d\n", i);
 		if ((*iter)->Render())
-			LOGERR("A render request has failed.\n");
+			LOGERR("Render request #%d has failed.\n", i);
+		i++;
 	}
 	return 0;
 }
@@ -544,13 +549,16 @@ int Page::Update(void)
 	int retCode = 0;
 
 	std::vector<RenderObject*>::iterator iter;
+	int i = 0;
 	for (iter = mRenders.begin(); iter != mRenders.end(); iter++)
 	{
+		LOGINFO("Requesting update to object #%d\n", i);
 		int ret = (*iter)->Update();
 		if (ret < 0)
-			LOGERR("An update request has failed.\n");
+			LOGERR("Update request #%d has failed.\n", i);
 		else if (ret > retCode)
 			retCode = ret;
+		i++;
 	}
 
 	return retCode;
@@ -900,11 +908,15 @@ int PageSet::LoadDetails(LoadingContext& ctx, xml_node<>* root)
 				}
 #endif
 				if (width != 0 && height != 0) {
-					float scale_w = (((float)gr_fb_width() + (float)tw_w_offset) - ((float)offx * 2.0)) / (float)width;
-					float scale_h = (((float)gr_fb_height() + (float)tw_h_offset) - ((float)offy * 2.0)) / (float)height;
+					//float scale_w = (((float)gr_fb_width() + (float)tw_w_offset) - ((float)offx * 2.0)) / (float)width;
+					//float scale_h = (((float)gr_fb_height() + (float)tw_h_offset) - ((float)offy * 2.0)) / (float)height;
+					float scale_w = (((float)libaroma_fb()->w + (float)tw_w_offset) - ((float)offx * 2.0)) / (float)width;
+					float scale_h = (((float)libaroma_fb()->h + (float)tw_h_offset) - ((float)offy * 2.0)) / (float)height;
 #ifdef TW_ROUND_SCREEN
-					float scale_off_w = ((float)gr_fb_width() + (float)tw_w_offset) / (float)width;
-					float scale_off_h = ((float)gr_fb_height() + (float)tw_h_offset) / (float)height;
+					//float scale_off_w = ((float)gr_fb_width() + (float)tw_w_offset) / (float)width;
+					//float scale_off_h = ((float)gr_fb_height() + (float)tw_h_offset) / (float)height;
+					float scale_off_w = ((float)libaroma_fb()->w + (float)tw_w_offset) / (float)width;
+					float scale_off_h = ((float)libaroma_fb()->h + (float)tw_h_offset) / (float)height;
 					tw_x_offset = offx * scale_off_w;
 					tw_y_offset = offy * scale_off_h;
 #endif
@@ -1114,11 +1126,15 @@ int PageSet::Render(void)
 		return ret;
 
 	std::vector<Page*>::iterator iter;
-
+	int i = 0;
 	for (iter = mOverlays.begin(); iter != mOverlays.end(); iter++) {
+		LOGINFO("Rendering overlay #%d\n", i);
 		ret = ((*iter) ? (*iter)->Render() : -1);
-		if (ret < 0)
+		if (ret < 0){
+			LOGERR("Rendering overlay #%d failed (it %s)\n", i, ((*iter) ? "should not" : "should"));
 			return ret;
+		}
+		i++;
 	}
 	return ret;
 }
@@ -1482,8 +1498,10 @@ int PageManager::ReloadPackage(std::string name, std::string package)
 	if (iter == mPageSets.end())
 		return -1;
 
-	if (mMouseCursor)
-		mMouseCursor->ResetData(gr_fb_width(), gr_fb_height());
+	if (mMouseCursor){
+		//mMouseCursor->ResetData(gr_fb_width(), gr_fb_height());
+		mMouseCursor->ResetData(libaroma_fb()->w, libaroma_fb()->h);
+	}
 
 	PageSet* set = (*iter).second;
 	mPageSets.erase(iter);
@@ -1639,15 +1657,19 @@ xml_node<>* PageManager::FindStyle(std::string name)
 
 MouseCursor *PageManager::GetMouseCursor()
 {
-	if (!mMouseCursor)
-		mMouseCursor = new MouseCursor(gr_fb_width(), gr_fb_height());
+	if (!mMouseCursor){
+		//mMouseCursor = new MouseCursor(gr_fb_width(), gr_fb_height());
+		mMouseCursor = new MouseCursor(libaroma_fb()->w, libaroma_fb()->h);
+	}
 	return mMouseCursor;
 }
 
 void PageManager::LoadCursorData(xml_node<>* node)
 {
-	if (!mMouseCursor)
-		mMouseCursor = new MouseCursor(gr_fb_width(), gr_fb_height());
+	if (!mMouseCursor){
+		//mMouseCursor = new MouseCursor(gr_fb_width(), gr_fb_height());
+		mMouseCursor = new MouseCursor(libaroma_fb()->w, libaroma_fb()->h);
+	}
 
 	mMouseCursor->LoadData(node);
 }

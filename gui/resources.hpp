@@ -29,6 +29,7 @@
 
 extern "C" {
 #include "../minuitwrp/minui.h"
+#include <aroma.h>
 }
 
 // Base Objects
@@ -47,7 +48,9 @@ private:
 protected:
 	static int ExtractResource(ZipWrap* pZip, std::string folderName, std::string fileName, std::string fileExtn, std::string destFile);
 	static void LoadImage(ZipWrap* pZip, std::string file, gr_surface* surface);
+	static void LoadCanvas(ZipWrap* pZip, std::string file, LIBAROMA_CANVASP *canvas);
 	static void CheckAndScaleImage(gr_surface source, gr_surface* destination, int retain_aspect);
+	static void CheckAndScaleCanvas(LIBAROMA_CANVASP source, LIBAROMA_CANVASP *destination, int retain_aspect);
 };
 
 class FontResource : public Resource
@@ -81,11 +84,13 @@ public:
 
 public:
 	gr_surface GetResource() { return mSurface; }
+	LIBAROMA_CANVASP GetCanvas() { return mCanvas; }
 	int GetWidth() { return gr_get_width(mSurface); }
 	int GetHeight() { return gr_get_height(mSurface); }
 
 protected:
 	gr_surface mSurface;
+	LIBAROMA_CANVASP mCanvas;
 };
 
 class AnimationResource : public Resource
@@ -96,13 +101,17 @@ public:
 
 public:
 	gr_surface GetResource() { return mSurfaces.empty() ? NULL : mSurfaces.at(0); }
+	LIBAROMA_CANVASP GetCanvas() { return mCanvases.empty() ? NULL : mCanvases.at(0); }
 	gr_surface GetResource(int entry) { return mSurfaces.empty() ? NULL : mSurfaces.at(entry); }
+	LIBAROMA_CANVASP GetCanvas(int entry) { return mCanvases.empty() ? NULL : mCanvases.at(entry); }
 	int GetWidth() { return gr_get_width(GetResource()); }
 	int GetHeight() { return gr_get_height(GetResource()); }
 	int GetResourceCount() { return mSurfaces.size(); }
+	int GetCanvasCount() { return mCanvases.size(); }
 
 protected:
 	std::vector<gr_surface> mSurfaces;
+	std::vector<LIBAROMA_CANVASP> mCanvases;
 };
 
 class ResourceManager

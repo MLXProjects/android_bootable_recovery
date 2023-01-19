@@ -795,8 +795,8 @@ GUITerminal::GUITerminal(xml_node<>* node) : GUIScrollList(node)
 	if (!node) {
 		mRenderX = 0;
 		mRenderY = 0;
-		mRenderW = gr_fb_width();
-		mRenderH = gr_fb_height();
+		mRenderW = libaroma_fb()->w;
+		mRenderH = libaroma_fb()->h;
 	}
 
 	engine = &gEngine;
@@ -879,25 +879,34 @@ void GUITerminal::RenderItem(size_t itemindex, int yPos, bool selected __unused)
 	if (!mFont || !mFont->GetResource())
 		return;
 
-	gr_color(mFontColor.red, mFontColor.green, mFontColor.blue, mFontColor.alpha);
+	//gr_color(mFontColor.red, mFontColor.green, mFontColor.blue, mFontColor.alpha);
+	word color = libaroma_rgb(mFontColor.red, mFontColor.green, mFontColor.blue);
 	// later: handle attributes here
 
 	// render text
 	const char* text = line.text.c_str();
-	gr_textEx_scaleW(mRenderX, yPos, text, mFont->GetResource(), mRenderW, TOP_LEFT, 0);
+	//gr_textEx_scaleW(mRenderX, yPos, text, mFont->GetResource(), mRenderW, TOP_LEFT, 0);
+	libaroma_draw_text(libaroma_fb()->canvas, text, mRenderX, yPos, color, mRenderW, LIBAROMA_FONT(0,3), 100);
 
 	if (itemindex == (size_t) engine->getCursorY()) {
 		// render cursor
 		int cursorX = engine->getCursorX();
 		std::string leftOfCursor = line.substr(0, cursorX);
-		int x = gr_ttf_measureEx(leftOfCursor.c_str(), mFont->GetResource());
-		// note that this single character can be a UTF-8 sequence
 		std::string atCursor = (size_t)cursorX < line.length() ? line.substr(cursorX, 1) : " ";
-		int w = gr_ttf_measureEx(atCursor.c_str(), mFont->GetResource());
+		LIBAROMA_TEXT loc_txt = libaroma_text((const char *)leftOfCursor.c_str(), color, mRenderW, LIBAROMA_FONT(0,3), 100);
+		LIBAROMA_TEXT atc_txt = libaroma_text((const char *)atCursor.c_str(), color, mRenderW, LIBAROMA_FONT(0,3), 100);
+		//int x = gr_ttf_measureEx(leftOfCursor.c_str(), mFont->GetResource());
+		// note that this single character can be a UTF-8 sequence
+		/*int w = gr_ttf_measureEx(atCursor.c_str(), mFont->GetResource());
 		gr_color(mFontColor.red, mFontColor.green, mFontColor.blue, mFontColor.alpha);
 		gr_fill(mRenderX + x, yPos, w, actualItemHeight);
 		gr_color(mBackgroundColor.red, mBackgroundColor.green, mBackgroundColor.blue, mBackgroundColor.alpha);
-		gr_textEx_scaleW(mRenderX + x, yPos, atCursor.c_str(), mFont->GetResource(), mRenderW, TOP_LEFT, 0);
+		gr_textEx_scaleW(mRenderX + x, yPos, atCursor.c_str(), mFont->GetResource(), mRenderW, TOP_LEFT, 0);*/
+		int x = libaroma_text_width(loc_txt);
+		int w = libaroma_text_width(atc_txt);
+		libaroma_draw_rect(libaroma_fb()->canvas, mRenderX + x, yPos, w, actualItemHeight, color, 0xFF);
+		color = libaroma_rgb(mBackgroundColor.red, mBackgroundColor.green, mBackgroundColor.blue);
+		libaroma_text_draw_color(libaroma_fb()->canvas, atc_txt, mRenderX + x, yPos, color);
 	}
 }
 
@@ -923,7 +932,7 @@ void GUITerminal::InitAndResize()
 	engine->initPty();
 	// send window resize
 	if (mFont && mFont->GetResource()) {
-		int charWidth = gr_ttf_measureEx("N", mFont->GetResource());
+		int charWidth = libaroma_font_glyph_width(libaroma_font_glyph('N', 0, 3));//gr_ttf_measureEx("N", mFont->GetResource());
 		engine->setSize(mRenderW / charWidth, GetDisplayItemCount(), mRenderW, mRenderH);
 	}
 }

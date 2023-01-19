@@ -20,6 +20,7 @@
 #define _GUI_HEADER
 
 #include <stdio.h>
+#include <aroma.h>
 
 int gui_init();
 int gui_loadResources();

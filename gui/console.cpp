@@ -221,8 +221,8 @@ GUIConsole::GUIConsole(xml_node<>* node) : GUIScrollList(node)
 	{
 		mRenderX = 0;
 		mRenderY = 0;
-		mRenderW = gr_fb_width();
-		mRenderH = gr_fb_height();
+		mRenderW = libaroma_fb()->w;
+		mRenderH = libaroma_fb()->h;
 	}
 	else
 	{
@@ -263,7 +263,8 @@ int GUIConsole::RenderSlideout(void)
 	if (!mSlideoutImage || !mSlideoutImage->GetResource())
 		return -1;
 
-	gr_blit(mSlideoutImage->GetResource(), 0, 0, mSlideoutW, mSlideoutH, mSlideoutX, mSlideoutY);
+	//gr_blit(mSlideoutImage->GetResource(), 0, 0, mSlideoutW, mSlideoutH, mSlideoutX, mSlideoutY);
+	libaroma_draw_ex(libaroma_fb()->canvas, mSlideoutImage->GetCanvas(), mSlideoutX, mSlideoutY, 0, 0, mSlideoutW, mSlideoutH, 1, 0xFF);
 	return 0;
 }
 
@@ -282,13 +283,17 @@ int GUIConsole::RenderConsole(void)
 		scrollToEnd = true;
 #if 0
 	// debug - show if we are tracking the last line
+	word color;
 	if (scrollToEnd) {
-		gr_color(0,255,0,255);
-		gr_fill(mRenderX+mRenderW-5, mRenderY+mRenderH-5, 5, 5);
+		/*gr_color(0,255,0,255);
+		gr_fill(mRenderX+mRenderW-5, mRenderY+mRenderH-5, 5, 5);*/
+		color = libaroma_rgb(0, 255, 0);
 	} else {
-		gr_color(255,0,0,255);
-		gr_fill(mRenderX+mRenderW-5, mRenderY+mRenderH-5, 5, 5);
+		/*gr_color(255,0,0,255);
+		gr_fill(mRenderX+mRenderW-5, mRenderY+mRenderH-5, 5, 5);*/
+		color = libaroma_rgb(255, 0, 0);
 	}
+	libaroma_draw_rect(libaroma_fb()->canvas, mRenderX+mRenderW-5, mRenderY+mRenderH-5, 5, 5, color, 0xFF);
 #endif
 	return (mSlideout ? RenderSlideout() : 0);
 }
@@ -392,19 +397,23 @@ size_t GUIConsole::GetItemCount()
 void GUIConsole::RenderItem(size_t itemindex, int yPos, bool selected __unused)
 {
 	// Set the color for the font
+	word color = 0;
 	if (rConsoleColor[itemindex] == "normal") {
-		gr_color(mFontColor.red, mFontColor.green, mFontColor.blue, mFontColor.alpha);
+		//gr_color(mFontColor.red, mFontColor.green, mFontColor.blue, mFontColor.alpha);
+		color = libaroma_rgb(mFontColor.red, mFontColor.green, mFontColor.blue);
 	} else {
 		COLOR FontColor;
 		std::string color = rConsoleColor[itemindex];
 		ConvertStrToColor(color, &FontColor);
 		FontColor.alpha = 255;
-		gr_color(FontColor.red, FontColor.green, FontColor.blue, FontColor.alpha);
+		//gr_color(FontColor.red, FontColor.green, FontColor.blue, FontColor.alpha);
+		color = libaroma_rgb(FontColor.red, FontColor.green, FontColor.blue);
 	}
 
 	// render text
 	const char* text = rConsole[itemindex].c_str();
-	gr_textEx_scaleW(mRenderX, yPos, text, mFont->GetResource(), mRenderW, TOP_LEFT, 0);
+	//gr_textEx_scaleW(mRenderX, yPos, text, mFont->GetResource(), mRenderW, TOP_LEFT, 0);
+	libaroma_draw_text(libaroma_fb()->canvas, text, mRenderX, yPos, color, mRenderW, LIBAROMA_FONT(0,3), 100);
 }
 
 void GUIConsole::NotifySelect(size_t item_selected __unused)

@@ -140,6 +140,12 @@ LOCAL_STATIC_LIBRARIES += libguitwrp
 LOCAL_SHARED_LIBRARIES += libaosprecovery libz libc libcutils libstdc++ libtar libblkid libminuitwrp libminadbd libmtdutils libtwadbbu libbootloader_message_twrp
 LOCAL_SHARED_LIBRARIES += libcrecovery libtwadbbu libtwrpdigest libc++
 
+#ifeq ($(TW_USE_LIBAROMA),true)
+TW_INCLUDE_JPEG := true
+LOCAL_SHARED_LIBRARIES += libaroma
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/libaroma/include
+#endif
+
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
     LOCAL_SHARED_LIBRARIES += libstlport
     LOCAL_CFLAGS += -DTW_NO_SHA2_LIBRARY
@@ -148,6 +154,7 @@ LOCAL_CFLAGS += -DSDK_VERSION=$(PLATFORM_SDK_VERSION)
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 25; echo $$?),0)
     LOCAL_CFLAGS += -DUSE_OLD_BASE_INCLUDE
 endif
+ifeq ($(TW_INCLUDE_CRYPTO), true)
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
     LOCAL_SHARED_LIBRARIES += libmincrypttwrp
     LOCAL_C_INCLUDES += $(LOCAL_PATH)/libmincrypt/includes
@@ -155,7 +162,7 @@ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
 else
     LOCAL_SHARED_LIBRARIES += libcrypto
 endif
-
+endif
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 23; echo $$?),0)
     LOCAL_SHARED_LIBRARIES += libbase
 endif
@@ -718,12 +725,14 @@ LOCAL_CFLAGS += -D_XOPEN_SOURCE -D_GNU_SOURCE
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libfusesideload
 LOCAL_SHARED_LIBRARIES := libcutils libc
+ifeq ($(TW_INCLUDE_CRYPTO), true)
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
     LOCAL_C_INCLUDES := $(LOCAL_PATH)/libmincrypt/includes
     LOCAL_SHARED_LIBRARIES += libmincrypttwrp
     LOCAL_CFLAGS += -DUSE_MINCRYPT
 else
     LOCAL_SHARED_LIBRARIES += libcrypto
+endif
 endif
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
     LOCAL_SRC_FILES := fuse_sideload22.cpp
@@ -743,12 +752,14 @@ LOCAL_CFLAGS += -D_XOPEN_SOURCE -D_GNU_SOURCE
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libfusesideload
 LOCAL_SHARED_LIBRARIES := libcutils libc
+ifeq ($(TW_INCLUDE_CRYPTO), true)
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
     LOCAL_C_INCLUDES := $(LOCAL_PATH)/libmincrypt/includes
     LOCAL_STATIC_LIBRARIES += libmincrypttwrp
     LOCAL_CFLAGS += -DUSE_MINCRYPT
 else
     LOCAL_STATIC_LIBRARIES += libcrypto_static
+endif
 endif
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
     LOCAL_SRC_FILES := fuse_sideload22.cpp
@@ -786,10 +797,12 @@ LOCAL_STATIC_LIBRARIES := \
     libminui \
     libotautil \
     libvintf_recovery \
-    libcrypto_utils \
-    libcrypto \
     libbase \
-    libziparchive \
+    libziparchive
+
+ifeq ($(TW_INCLUDE_CRYPTO), true)
+LOCAL_STATIC_LIBRARIES += libcrypto_utils libcrypto
+endif
 
 include $(BUILD_STATIC_LIBRARY)
 
@@ -817,7 +830,10 @@ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 24; echo $$?),0)
     LOCAL_SRC_FILES += verifier24/verifier.cpp verifier24/asn1_decoder.cpp
     LOCAL_CFLAGS += -DUSE_OLD_VERIFIER
 else
-    LOCAL_SHARED_LIBRARIES += libcrypto libbase
+    LOCAL_SHARED_LIBRARIES += libbase
+    ifeq ($(TW_INCLUDE_CRYPTO), true)
+    LOCAL_SHARED_LIBRARIES += libcrypto
+    endif
     LOCAL_SRC_FILES += verifier.cpp asn1_decoder.cpp
     LOCAL_C_INCLUDES += $(LOCAL_PATH)/otautil/include
 endif
@@ -827,7 +843,10 @@ ifeq ($(AB_OTA_UPDATER),true)
 endif
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 26; echo $$?),0)
     LOCAL_SRC_FILES += otautil/ZipUtil.cpp otautil/SysUtil.cpp otautil/DirUtil.cpp
-    LOCAL_SHARED_LIBRARIES += libziparchive libext4_utils libcrypto libcrypto_utils
+    LOCAL_SHARED_LIBRARIES += libziparchive libext4_utils 
+    ifeq ($(TW_INCLUDE_CRYPTO), true)
+    LOCAL_SHARED_LIBRARIES += libcrypto libcrypto_utils
+    endif
     LOCAL_STATIC_LIBRARIES += libvintf_recovery libfs_mgr liblogwrap libavb libvintf libtinyxml2 libz
     LOCAL_C_INCLUDES += $(LOCAL_PATH)/otautil/include
     ifeq ($(shell test $(PLATFORM_SDK_VERSION) -gt 27; echo $$?),0)
@@ -851,9 +870,11 @@ LOCAL_SRC_FILES := \
     verifier.cpp
 LOCAL_STATIC_LIBRARIES := \
     libotautil \
-    libcrypto_utils \
-    libcrypto \
     libbase
+
+ifeq ($(TW_INCLUDE_CRYPTO), true)
+LOCAL_STATIC_LIBRARIES += libcrypto_utils libcrypto
+endif
 LOCAL_CFLAGS := -Wall -Werror
 include $(BUILD_STATIC_LIBRARY)
 
@@ -990,6 +1011,10 @@ endif
 ifeq ($(TW_INCLUDE_FB2PNG), true)
     include $(commands_TWRP_local_path)/fb2png/Android.mk
 endif
+
+#ifeq ($(TW_USE_LIBAROMA),true)
+include $(commands_TWRP_local_path)/libaroma/Android.mk
+#endif
 
 endif
 

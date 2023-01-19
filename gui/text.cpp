@@ -54,10 +54,10 @@ GUIText::GUIText(xml_node<>* node)
 	scaleWidth = true;
 	isHighlighted = false;
 	mText = "";
-
 	if (!node)
 		return;
 
+	LOGINFO("Create text object\n");
 	// Load colors
 	mColor = LoadAttrColor(node, "color", COLOR(0,0,0,255));
 	mHighlightColor = LoadAttrColor(node, "highlightcolor", mColor);
@@ -80,21 +80,21 @@ GUIText::GUIText(xml_node<>* node)
 		scaleWidth = false;
 	} else {
 		if (mPlacement == TOP_LEFT || mPlacement == BOTTOM_LEFT) {
-			maxWidth = gr_fb_width() - mRenderX;
+			maxWidth = libaroma_fb()->w - mRenderX;
 		} else if (mPlacement == TOP_RIGHT || mPlacement == BOTTOM_RIGHT) {
 			maxWidth = mRenderX;
 		} else if (mPlacement == CENTER || mPlacement == CENTER_X_ONLY) {
-			if (mRenderX < gr_fb_width() / 2) {
+			if (mRenderX < libaroma_fb()->w / 2) {
 				maxWidth = mRenderX * 2;
 			} else {
-				maxWidth = (gr_fb_width() - mRenderX) * 2;
+				maxWidth = (libaroma_fb()->w - mRenderX) * 2;
 			}
 		}
 	}
 
 	// Simple way to check for static state
 	mLastValue = gui_parse_text(mText);
-	if (mLastValue != mText)   mIsStatic = 0;
+	if (mLastValue != mText) mIsStatic = 0;
 
 	mFontHeight = mFont->GetHeight();
 }
@@ -107,20 +107,26 @@ int GUIText::Render(void)
 	void* fontResource = NULL;
 	if (mFont)
 		fontResource = mFont->GetResource();
-	else
-		return -1;
+	//else
+		//return -1;
 
 	mLastValue = gui_parse_text(mText);
 
 	mVarChanged = 0;
-
-	if (isHighlighted)
-		gr_color(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue, mHighlightColor.alpha);
-	else
-		gr_color(mColor.red, mColor.green, mColor.blue, mColor.alpha);
-
-	gr_textEx_scaleW(mRenderX, mRenderY, mLastValue.c_str(), fontResource, maxWidth, mPlacement, scaleWidth);
-
+	word color;
+	if (isHighlighted){
+		//gr_color(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue, mHighlightColor.alpha);
+		color = libaroma_rgb(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue);
+	}
+	else {
+		//gr_color(mColor.red, mColor.green, mColor.blue, mColor.alpha);
+		color = libaroma_rgb(mColor.red, mColor.green, mColor.blue);
+	}
+	
+	//gr_textEx_scaleW(mRenderX, mRenderY, mLastValue.c_str(), fontResource, maxWidth, mPlacement, scaleWidth);
+	LOGINFO("Rendering text \"%s\" - \"%s\"\n", mLastValue.c_str(), mText.c_str());
+	libaroma_draw_text(libaroma_fb()->canvas, mLastValue.c_str(), mRenderX, mRenderY, color, maxWidth, LIBAROMA_FONT(0, 3), 100);
+	LOGINFO("Rendering text done\n");
 	return 0;
 }
 
@@ -154,12 +160,23 @@ int GUIText::GetCurrentBounds(int& w, int& h)
 {
 	void* fontResource = NULL;
 
-	if (mFont)
-		fontResource = mFont->GetResource();
+	/*if (mFont)
+		fontResource = mFont->GetResource();*/
 
-	h = mFontHeight;
+	//h = mFontHeight;
+	//h = libaroma_font_glyph_height(libaroma_font_glyph('|', 0, 3));
+	LOGINFO("Parsing text\n");
 	mLastValue = gui_parse_text(mText);
-	w = gr_ttf_measureEx(mLastValue.c_str(), fontResource);
+	//w = gr_ttf_measureEx(mLastValue.c_str(), fontResource);
+	LOGINFO("Parsing text x2\n");
+	LIBAROMA_TEXT txt = libaroma_text(mLastValue.c_str(), 0, libaroma_fb()->w, LIBAROMA_FONT(0,3), 100);
+	LOGINFO("Loading text width\n");
+	w = libaroma_text_width(txt);
+	LOGINFO("Loading text height\n");
+	h = libaroma_text_height(txt);
+	LOGINFO("Freeing txt\n");
+	libaroma_text_free(txt);
+	LOGINFO("Bounds done\n");
 	return 0;
 }
 

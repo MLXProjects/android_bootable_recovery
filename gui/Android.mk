@@ -107,6 +107,10 @@ ifeq ($(AB_OTA_UPDATER),true)
     LOCAL_CFLAGS += -DAB_OTA_UPDATER=1
 endif
 
+#ifeq ($(TW_USE_LIBAROMA),true)
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libaroma/include
+#endif
+
 LOCAL_C_INCLUDES += \
     bionic \
     system/core/base/include \

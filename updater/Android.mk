@@ -48,12 +48,14 @@ updater_common_static_libraries := \
     libbz \
     libz \
     libbase \
-    libcrypto \
-    libcrypto_utils \
     libcutils \
     libtune2fs \
     libbrotli \
     $(tune2fs_static_libraries)
+
+ifeq ($(TW_INCLUDE_CRYPTO), true)
+updater_common_static_libraries += libcrypto libcrypto_utils
+endif
 
 # libupdater (static library)
 # ===============================

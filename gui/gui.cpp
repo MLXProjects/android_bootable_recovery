@@ -91,9 +91,10 @@ static void flip(void)
 		timespec time;
 		clock_gettime(CLOCK_MONOTONIC, &time);
 		write(gRecorder, &time, sizeof(timespec));
-		gr_write_frame_to_file(gRecorder);
+		//gr_write_frame_to_file(gRecorder);
 	}
-	gr_flip();
+	//gr_flip();
+	libaroma_fb_sync();
 }
 
 void rapidxml::parse_error_handler(const char *what, void *where)
@@ -751,15 +752,22 @@ std::string gui_lookup(const std::string& resource_name, const std::string& defa
 
 extern "C" int gui_init(void)
 {
-	gr_init();
+	//gr_init();
+	/* moved here because input and graphics start together in libaroma */
+#ifdef TW_DELAY_TOUCH_INIT_MS
+	usleep(TW_DELAY_TOUCH_INIT_MS);
+#endif
+	if (!libaroma_start()){
+		return 1;
+	}
 	TWFunc::Set_Brightness(DataManager::GetStrValue("tw_brightness"));
-
+/*
 #ifdef TW_SCREEN_BLANK_ON_BOOT
         printf("TW_SCREEN_BLANK_ON_BOOT := true\n");
         blankTimer.blank();
         blankTimer.resetTimerAndUnblank();
 #endif
-
+*/
 	// load and show splash screen
 	if (PageManager::LoadPackage("splash", TWRES "splash.xml", "splash")) {
 		LOGERR("Failed to load splash screen XML.\n");
@@ -770,11 +778,7 @@ extern "C" int gui_init(void)
 		flip();
 		PageManager::ReleasePackage("splash");
 	}
-
-#ifdef TW_DELAY_TOUCH_INIT_MS
-	usleep(TW_DELAY_TOUCH_INIT_MS);
-#endif
-	ev_init();
+	//ev_init();
 	return 0;
 }
 

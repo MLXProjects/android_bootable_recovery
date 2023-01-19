@@ -56,41 +56,52 @@ GUIButton::GUIButton(xml_node<>* node)
 
 	if (!node)  return;
 
+	LOGINFO("Create button object\n");
 	// These can be loaded directly from the node
 	mButtonLabel = new GUIText(node);
 	mAction = new GUIAction(node);
 
 	mButtonImg = new GUIImage(node);
+	LOGINFO("Render button image\n");
 	if (mButtonImg->Render() < 0)
 	{
+		LOGERR("Render button image failed\n");
 		delete mButtonImg;
 		mButtonImg = NULL;
 	}
+	LOGINFO("Render button label\n");
 	if (mButtonLabel->Render() < 0)
 	{
+		LOGINFO("Render button label failed\n");
 		delete mButtonLabel;
 		mButtonLabel = NULL;
 	}
 	// Load fill if it exists
+	LOGINFO("Load button fill color\n");
 	mFillColor = LoadAttrColor(FindNode(node, "fill"), "color", &hasFill);
 	if (!hasFill && mButtonImg == NULL) {
 		LOGERR("No image resource or fill specified for button.\n");
 	}
 
 	// The icon is a special case
+	LOGINFO("Load button icon\n");
 	mButtonIcon = LoadAttrImage(FindNode(node, "icon"), "resource");
-
+	LOGINFO("Load button highlight color\n");
 	mHighlightColor = LoadAttrColor(FindNode(node, "highlight"), "color", &hasHighlightColor);
 
 	int x = 0, y = 0, w = 0, h = 0;
 	TextPlacement = TOP_LEFT;
 	if (mButtonImg) {
+		LOGINFO("Get button image render pos\n");
 		mButtonImg->GetRenderPos(x, y, w, h);
 	} else if (hasFill) {
+		LOGINFO("Load button placement \n");
 		LoadPlacement(FindNode(node, "placement"), &x, &y, &w, &h, &TextPlacement);
 	}
+	LOGINFO("Set button render pos\n");
 	SetRenderPos(x, y, w, h);
 	if (mButtonLabel) {
+		LOGINFO("Setting up button label placement\n");
 		TextPlacement = (Placement)LoadAttrInt(FindNode(node, "placement"), "textplacement", TOP_LEFT);
 		if (TextPlacement != TEXT_ONLY_RIGHT) {
 			mButtonLabel->scaleWidth = 1;
@@ -110,6 +121,7 @@ GUIButton::GUIButton(xml_node<>* node)
 			SetActionPos(mRenderX, mRenderY, mRenderW, mRenderH);
 		}
 	}
+	LOGINFO("Button create done\n");
 }
 
 GUIButton::~GUIButton()
@@ -121,6 +133,7 @@ GUIButton::~GUIButton()
 
 int GUIButton::Render(void)
 {
+	LOGINFO("Rendering button\n");
 	if (!isConditionTrue())
 	{
 		mRendered = false;
@@ -128,15 +141,19 @@ int GUIButton::Render(void)
 	}
 
 	int ret = 0;
-
-	if (mButtonImg)	 ret = mButtonImg->Render();
-	if (ret < 0)		return ret;
+	word color;
+	if (mButtonImg)	ret = mButtonImg->Render();
+	if (ret < 0) return ret;
 	if (hasFill) {
-		gr_color(mFillColor.red, mFillColor.green, mFillColor.blue, mFillColor.alpha);
-		gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+		//gr_color(mFillColor.red, mFillColor.green, mFillColor.blue, mFillColor.alpha);
+		//gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+		color = libaroma_rgb(mFillColor.red, mFillColor.green, mFillColor.blue);
+		libaroma_draw_rect(libaroma_fb()->canvas, mRenderX, mRenderY, mRenderW, mRenderH, color, 0xFF/*mFillColor.alpha*/);
 	}
-	if (mButtonIcon && mButtonIcon->GetResource())
-		gr_blit(mButtonIcon->GetResource(), 0, 0, mIconW, mIconH, mIconX, mIconY);
+	if (mButtonIcon && mButtonIcon->GetCanvas()){
+		//gr_blit(mButtonIcon->GetResource(), 0, 0, mIconW, mIconH, mIconX, mIconY);
+		libaroma_draw_ex(libaroma_fb()->canvas, mButtonIcon->GetCanvas(), mIconX, mIconY, 0, 0, mIconW, mIconH, 1, 0xFF);
+	}
 	if (mButtonLabel) {
 		int w, h;
 		mButtonLabel->GetCurrentBounds(w, h);
@@ -144,41 +161,46 @@ int GUIButton::Render(void)
 			mTextW = w;
 		}
 		ret = mButtonLabel->Render();
-		if (ret < 0)		return ret;
+		if (ret < 0) return ret;
 	}
 	if (renderHighlight && hasHighlightColor) {
-		gr_color(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue, mHighlightColor.alpha);
-		gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+		//gr_color(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue, mHighlightColor.alpha);
+		//gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+		word color = libaroma_rgb(mHighlightColor.red, mHighlightColor.green, mHighlightColor.blue);
+		libaroma_draw_rect(libaroma_fb()->canvas, mRenderX, mRenderY, mRenderW, mRenderH, color, 0xFF/*mHighlightColor.alpha*/);
 	}
 	mRendered = true;
+	LOGINFO("Rendering button done\n");
 	return ret;
 }
 
 int GUIButton::Update(void)
 {
 	if (!isConditionTrue())	return (mRendered ? 2 : 0);
-	if (!mRendered)			return 2;
+	if (!mRendered) return 2;
 
 	int ret = 0, ret2 = 0;
 
-	if (mButtonImg)			ret = mButtonImg->Update();
-	if (ret < 0)			return ret;
+	if (mButtonImg)	ret = mButtonImg->Update();
+	if (ret < 0) return ret;
 
 	if (ret == 0)
 	{
 		if (mButtonLabel) {
 			ret2 = mButtonLabel->Update();
-			if (ret2 < 0)	return ret2;
+			if (ret2 < 0) return ret2;
 			if (ret2 > ret)	ret = ret2;
 		}
 	}
 	else if (ret == 1)
 	{
 		// The button re-rendered, so everyone else is a render
-		if (mButtonIcon && mButtonIcon->GetResource())
-			gr_blit(mButtonIcon->GetResource(), 0, 0, mIconW, mIconH, mIconX, mIconY);
-		if (mButtonLabel)   ret = mButtonLabel->Render();
-		if (ret < 0)		return ret;
+		if (mButtonIcon && mButtonIcon->GetCanvas()){
+			libaroma_draw_ex(libaroma_fb()->canvas, mButtonIcon->GetCanvas(), mIconX, mIconY, 0, 0, mIconW, mIconH, 1, 0xFF);
+			//gr_blit(mButtonIcon->GetResource(), 0, 0, mIconW, mIconH, mIconX, mIconY);
+		}
+		if (mButtonLabel) ret = mButtonLabel->Render();
+		if (ret < 0) return ret;
 		ret = 1;
 	}
 	else
@@ -199,16 +221,17 @@ int GUIButton::SetRenderPos(int x, int y, int w, int h)
 		mRenderH = h;
 	}
 	mIconW = mIconH = 0;
-
-	if (mButtonIcon && mButtonIcon->GetResource()) {
+	LOGINFO("Get icon size\n");
+	if (mButtonIcon && mButtonIcon->GetCanvas()) {
 		mIconW = mButtonIcon->GetWidth();
 		mIconH = mButtonIcon->GetHeight();
 	}
-
 	mTextH = 0;
 	mTextW = 0;
 	mIconX = mRenderX + ((mRenderW - mIconW) / 2);
+	LOGINFO("Get label bounds\n");
 	if (mButtonLabel)   mButtonLabel->GetCurrentBounds(mTextW, mTextH);
+	LOGINFO("Calculate coords\n");
 	if (mTextW && TextPlacement == TEXT_ONLY_RIGHT)
 	{
 		mRenderW += mTextW + 5;
@@ -223,10 +246,13 @@ int GUIButton::SetRenderPos(int x, int y, int w, int h)
 		int divisor = mRenderH - (mIconH + mTextH);
 		mIconY = mRenderY + (divisor / 3);
 	}
-
+	LOGINFO("Set label render pos\n");
 	if (mButtonLabel)   mButtonLabel->SetRenderPos(mTextX, mTextY);
+	LOGINFO("Set action pos #1\n");
 	if (mAction)		mAction->SetActionPos(mRenderX, mRenderY, mRenderW, mRenderH);
+	LOGINFO("Set action pos #2\n");
 	SetActionPos(mRenderX, mRenderY, mRenderW, mRenderH);
+	LOGINFO("Return xd\n");
 	return 0;
 }
 

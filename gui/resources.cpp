@@ -34,6 +34,7 @@
 extern "C" {
 #include "../twcommon.h"
 #include "gui.h"
+#include <aroma.h>
 }
 #include "../minuitwrp/minui.h"
 
@@ -82,6 +83,57 @@ void Resource::LoadImage(ZipWrap* pZip, std::string file, gr_surface* surface)
 		LOGINFO("Failed to load image from %s%s, error %d\n", file.c_str(), pZip ? " (zip)" : "", rc);
 }
 
+void Resource::LoadCanvas(ZipWrap* pZip, std::string file, LIBAROMA_CANVASP *canvas)
+{
+	int rc = 0;
+	LIBAROMA_CANVASP loaded_cv = NULL;
+	LOGINFO("LoadCanvas file=\"%s\", TMP=\"%s\"\n", file.c_str(), TMP_RESOURCE_NAME);
+	if (ExtractResource(pZip, "images", file, ".png", TMP_RESOURCE_NAME) == 0)
+	{
+		LOGINFO("Using file load method #1\n");
+		//rc = res_create_surface(TMP_RESOURCE_NAME, surface);
+		loaded_cv = libaroma_image_file((char *)TMP_RESOURCE_NAME, 0);
+		if (!loaded_cv) {
+			LOGERR("Failed to load canvas from %s\n", TMP_RESOURCE_NAME);
+			rc = -1;
+		}
+		unlink(TMP_RESOURCE_NAME);
+	}
+	else if (ExtractResource(pZip, "images", file, "", TMP_RESOURCE_NAME) == 0)
+	{
+		LOGINFO("Using file load method #2\n");
+		// JPG includes the .jpg extension in the filename so extension should be blank
+		//rc = res_create_surface(TMP_RESOURCE_NAME, surface);
+		loaded_cv = libaroma_image_file((char *)TMP_RESOURCE_NAME, 0);
+		if (!loaded_cv) {
+			LOGERR("Failed to load canvas from %s\n", TMP_RESOURCE_NAME);
+			rc = -1;
+		}
+		unlink(TMP_RESOURCE_NAME);
+	}
+	else if (!pZip)
+	{
+		LOGINFO("Using file load method #3\n");
+		// File name in xml may have included .png so try without adding .png
+		//rc = res_create_surface(file.c_str(), surface);
+		char c_path[256]={0};
+		snprintf(c_path, 256, TWRES "/images/%s.png", file.c_str());
+		loaded_cv = libaroma_image_file(c_path, 0);
+		if (!loaded_cv) {
+			LOGERR("Failed to load canvas from %s\n", c_path);
+			rc = -1;
+		}
+	}
+	if (rc != 0){
+		LOGINFO("Failed to load image from %s%s, error %d\n", file.c_str(), pZip ? " (zip)" : "", rc);
+	}
+	else {
+		LOGINFO("Setting canvas pointer %p to %p\n", canvas, loaded_cv);
+		*canvas = loaded_cv;
+		LOGINFO("Canvas set to %p\n", *canvas);
+	}
+}
+
 void Resource::CheckAndScaleImage(gr_surface source, gr_surface* destination, int retain_aspect)
 {
 	if (!source) {
@@ -101,6 +153,46 @@ void Resource::CheckAndScaleImage(gr_surface source, gr_surface* destination, in
 			*destination = source;
 		}
 	} else {
+		*destination = source;
+	}
+}
+
+void Resource::CheckAndScaleCanvas(LIBAROMA_CANVASP source, LIBAROMA_CANVASP *destination, int retain_aspect)
+{
+	if (!source) {
+		*destination = NULL;
+		return;
+	}
+	if (get_scale_w() != 0 && get_scale_h() != 0) {
+		float scale_w = get_scale_w(), scale_h = get_scale_h();
+		if (retain_aspect) {
+			if (scale_w < scale_h)
+				scale_h = scale_w;
+			else
+				scale_w = scale_h;
+		}
+		byte scaled = 0;
+		LOGINFO("scaling (%dx%d) -> (%dx%d)\n", source->w, source->h, source->w*scale_w, source->h*scale_h);
+		LIBAROMA_CANVASP temp_cv = libaroma_canvas_alpha(source->w*scale_w, source->h*scale_h);
+		if (!temp_cv){
+			LOGERR("Error allocating memory for scaled image, using regular size.\n");
+			*destination = source;
+			return;
+		}
+		libaroma_canvas_fillalpha(temp_cv, 0, 0, temp_cv->w, temp_cv->h, 0);
+		LOGINFO("Scaling canvas with size (%dx%d)\n", temp_cv->w, temp_cv->h);
+		scaled = libaroma_draw_scale_smooth(temp_cv, source, 0, 0, temp_cv->w, temp_cv->h, 0, 0, source->w, source->h);
+		if (!scaled) {
+			LOGINFO("Error scaling image, using regular size.\n");
+			libaroma_canvas_free(temp_cv);
+			*destination = source;
+		}
+		else {
+			LOGINFO("Canvas need scaling, setting to %p\n", temp_cv);
+			*destination = temp_cv;
+		}
+	} else {
+		LOGINFO("Canvas not need scaling, setting to %p\n", source);
 		*destination = source;
 	}
 }
@@ -127,6 +219,7 @@ void FontResource::LoadFont(xml_node<>* node, ZipWrap* pZip)
 		return;
 
 	file = attr->value();
+	LOGINFO("Loading font at %s\n", file.c_str());
 
 	if (file.size() >= 4 && file.compare(file.size()-4, 4, ".ttf") == 0)
 	{
@@ -155,12 +248,16 @@ void FontResource::LoadFont(xml_node<>* node, ZipWrap* pZip)
 		std::string tmpname = "/tmp/" + file;
 		if (ExtractResource(pZip, "fonts", file, "", tmpname) == 0)
 		{
-			mFont = gr_ttf_loadFont(tmpname.c_str(), font_size, dpi);
+			LOGINFO("Font name (#1) now is %s\n", tmpname.c_str());
+			libaroma_font(0, libaroma_stream_file(((char*)tmpname.c_str())));
+			//mFont = gr_ttf_loadFont(tmpname.c_str(), font_size, dpi);
 		}
 		else
 		{
 			file = std::string(TWRES "fonts/") + file;
-			mFont = gr_ttf_loadFont(file.c_str(), font_size, dpi);
+			LOGINFO("Font name (#2) now is %s\n", file.c_str());
+			//mFont = gr_ttf_loadFont(file.c_str(), font_size, dpi);
+			libaroma_font(0, libaroma_stream_file(((char*)file.c_str())));
 		}
 	}
 	else
@@ -198,6 +295,7 @@ ImageResource::ImageResource(xml_node<>* node, ZipWrap* pZip)
 {
 	std::string file;
 	gr_surface temp_surface = NULL;
+	LIBAROMA_CANVASP temp_canvas = NULL;
 
 	mSurface = NULL;
 	if (!node) {
@@ -216,12 +314,17 @@ ImageResource::ImageResource(xml_node<>* node, ZipWrap* pZip)
 	// the value does not matter, if retainaspect is present, we assume that we want to retain it
 	LoadImage(pZip, file, &temp_surface);
 	CheckAndScaleImage(temp_surface, &mSurface, retain_aspect);
+	LOGINFO("Temp Canvas pointer = %p\n", &temp_canvas);
+	LoadCanvas(pZip, file, &temp_canvas);
+	CheckAndScaleCanvas(temp_canvas, &mCanvas, retain_aspect);
 }
 
 ImageResource::~ImageResource()
 {
 	if (mSurface)
 		res_free_surface(mSurface);
+	if (mCanvas)
+		libaroma_canvas_free(mCanvas);
 }
 
 AnimationResource::AnimationResource(xml_node<>* node, ZipWrap* pZip)
@@ -248,10 +351,14 @@ AnimationResource::AnimationResource(xml_node<>* node, ZipWrap* pZip)
 		fileName << file << std::setfill ('0') << std::setw (3) << fileNum;
 
 		gr_surface surface, temp_surface = NULL;
+		LIBAROMA_CANVASP canvas, temp_canvas = NULL;
 		LoadImage(pZip, fileName.str(), &temp_surface);
+		LoadCanvas(pZip, fileName.str(), &temp_canvas);
 		CheckAndScaleImage(temp_surface, &surface, retain_aspect);
-		if (surface) {
+		CheckAndScaleCanvas(temp_canvas, &canvas, retain_aspect);
+		if (surface && canvas) {
 			mSurfaces.push_back(surface);
+			mCanvases.push_back(canvas);
 			fileNum++;
 		} else
 			break; // Done loading animation images
@@ -393,7 +500,7 @@ void ResourceManager::LoadResources(xml_node<>* resList, ZipWrap* pZip, std::str
 		else if (type == "image")
 		{
 			ImageResource* res = new ImageResource(child, pZip);
-			if (res && res->GetResource())
+			if (res && res->GetResource() && res->GetCanvas())
 				mImages.push_back(res);
 			else {
 				error = true;
@@ -403,7 +510,7 @@ void ResourceManager::LoadResources(xml_node<>* resList, ZipWrap* pZip, std::str
 		else if (type == "animation")
 		{
 			AnimationResource* res = new AnimationResource(child, pZip);
-			if (res && res->GetResourceCount())
+			if (res && res->GetResourceCount() && res->GetCanvasCount())
 				mAnimations.push_back(res);
 			else {
 				error = true;

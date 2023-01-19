@@ -48,10 +48,10 @@ GUIImage::GUIImage(xml_node<>* node) : GUIObject(node)
 	mImage = NULL;
 	mHighlightImage = NULL;
 	isHighlighted = false;
-
 	if (!node)
 		return;
 
+	LOGINFO("Create image object\n");
 	mImage = LoadAttrImage(FindNode(node, "image"), "resource");
 	mHighlightImage = LoadAttrImage(FindNode(node, "image"), "highlightresource");
 
@@ -87,14 +87,21 @@ int GUIImage::Render(void)
 	if (!isConditionTrue())
 		return 0;
 
-	if (isHighlighted && mHighlightImage && mHighlightImage->GetResource()) {
-		gr_blit(mHighlightImage->GetResource(), 0, 0, mRenderW, mRenderH, mRenderX, mRenderY);
+	if (isHighlighted && mHighlightImage && mHighlightImage->GetCanvas()) {
+		//gr_blit(mHighlightImage->GetResource(), 0, 0, mRenderW, mRenderH, mRenderX, mRenderY);
+		libaroma_draw_ex(libaroma_fb()->canvas, mHighlightImage->GetCanvas(), 0, 0, mRenderW, mRenderH, mRenderX, mRenderY, 1, 0xFF);
 		return 0;
 	}
-	else if (!mImage || !mImage->GetResource())
+	else if (!mImage || !mImage->GetCanvas()){
 		return -1;
-
-	gr_blit(mImage->GetResource(), 0, 0, mRenderW, mRenderH, mRenderX, mRenderY);
+	}
+	//gr_blit(mImage->GetResource(), 0, 0, mRenderW, mRenderH, mRenderX, mRenderY);
+	LIBAROMA_CANVASP img_canvas = mImage->GetCanvas();
+	LOGINFO("Loaded canvas pointer = %p\n", img_canvas);
+	LOGINFO("Loaded canvas (%dx%d)\n", img_canvas->w, img_canvas->h);
+	LOGINFO("Rendering image (%dx%d - %d, %d)\n", mRenderW, mRenderH, mRenderX, mRenderY);
+	libaroma_draw_ex(libaroma_fb()->canvas, mImage->GetCanvas(), mRenderX, mRenderY, 0, 0, mRenderW, mRenderH, 1, 0xFF);
+	LOGINFO("Render image done\n");
 	return 0;
 }
 

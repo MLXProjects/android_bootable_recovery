@@ -119,13 +119,17 @@ int GUICheckbox::Render(void)
 
 	if (lastState)
 	{
-		if (mChecked && mChecked->GetResource())
-			gr_blit(mChecked->GetResource(), 0, 0, mCheckW, mCheckH, mRenderX, mRenderY);
+		if (mChecked && mChecked->GetResource()){
+			//gr_blit(mChecked->GetResource(), 0, 0, mCheckW, mCheckH, mRenderX, mRenderY);
+			libaroma_draw_ex(libaroma_fb()->canvas, mChecked->GetCanvas(), mRenderX, mRenderY, 0, 0, mRenderW, mRenderH, 1, 0xFF);
+		}
 	}
 	else
 	{
-		if (mUnchecked && mUnchecked->GetResource())
-			gr_blit(mUnchecked->GetResource(), 0, 0, mCheckW, mCheckH, mRenderX, mRenderY);
+		if (mUnchecked && mUnchecked->GetResource()){
+			//gr_blit(mUnchecked->GetResource(), 0, 0, mCheckW, mCheckH, mRenderX, mRenderY);
+			libaroma_draw_ex(libaroma_fb()->canvas, mUnchecked->GetCanvas(), mRenderX, mRenderY, 0, 0, mRenderW, mRenderH, 1, 0xFF);
+		}
 	}
 	if (mLabel)
 		ret = mLabel->Render();
@@ -167,7 +171,7 @@ int GUICheckbox::SetRenderPos(int x, int y, int w, int h)
 
 	mLabel->SetRenderPos(mTextX, mTextY, 0, 0);
 	mLabel->SetPlacement(TEXT_ONLY_RIGHT);
-	mLabel->SetMaxWidth(gr_fb_width() - mTextX);
+	mLabel->SetMaxWidth(libaroma_fb()->w - mTextX);
 	SetActionPos(mRenderX, mRenderY, mRenderW, mRenderH);
 	return 0;
 }

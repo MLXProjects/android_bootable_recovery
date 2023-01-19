@@ -52,6 +52,7 @@ GUIFill::GUIFill(xml_node<>* node) : GUIObject(node)
 		return;
 	}
 
+	LOGINFO("Create fill object\n");
 	// Load the placement
 	LoadPlacement(FindNode(node, "placement"), &mRenderX, &mRenderY, &mRenderW, &mRenderH);
 
@@ -60,11 +61,14 @@ GUIFill::GUIFill(xml_node<>* node) : GUIObject(node)
 
 int GUIFill::Render(void)
 {
+	LOGINFO("Rendering Fill control\n");
 	if (!isConditionTrue())
 		return 0;
 
-	gr_color(mColor.red, mColor.green, mColor.blue, mColor.alpha);
-	gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+	//gr_color(mColor.red, mColor.green, mColor.blue, mColor.alpha);
+	//gr_fill(mRenderX, mRenderY, mRenderW, mRenderH);
+	word color = libaroma_rgb(mColor.red, mColor.green, mColor.blue);
+	libaroma_draw_rect(libaroma_fb()->canvas, mRenderX, mRenderY, mRenderW, mRenderH, color, 0xFF /*mColor.alpha*/);
 	return 0;
 }
 
